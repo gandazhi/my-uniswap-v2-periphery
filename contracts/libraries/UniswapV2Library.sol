@@ -15,20 +15,32 @@ library UniswapV2Library {
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
+    // 通过CREATE2方法创建的合约可以使用计算出合约部署的地址
     function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
+
+        /**
+        新地址 = hash("0xFF",创建者地址, salt, bytecode)
+        hex'ff' 一个常数，避免和CREATE冲突
+        factory 创建者地址
+        keccak256(abi.encodePacked(token0, token1))  盐值
+        待部署合约的字节码（bytecode）
+         */
         pair = address(uint(keccak256(abi.encodePacked(
                 hex'ff',
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
-                hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
+                hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash 使用固定值是为了用于确保每个配对合约的代码是相同的
             ))));
     }
 
     // fetches and sorts the reserves for a pair
     function getReserves(address factory, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
+        // tokenA和tokenB排序
         (address token0,) = sortTokens(tokenA, tokenB);
+        // 获取存储量
         (uint reserve0, uint reserve1,) = IUniswapV2Pair(pairFor(factory, tokenA, tokenB)).getReserves();
+        // 通过与token0对比，对储备量排序 返回
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 

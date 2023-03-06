@@ -12,24 +12,40 @@ import './interfaces/IWETH.sol';
 contract UniswapV2Router02 is IUniswapV2Router02 {
     using SafeMath for uint;
 
+    // 工厂合约地址 immutable修饰的变量不可变
     address public immutable override factory;
+    // WETH地址 immutable修饰的变量不可变
     address public immutable override WETH;
 
+    // 确保操作最后时间大于等于当前时间戳
     modifier ensure(uint deadline) {
         require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
         _;
     }
 
+    // 构造函数
     constructor(address _factory, address _WETH) public {
         factory = _factory;
         WETH = _WETH;
     }
 
+    // 只有从WETH合约传递的以太币才会被接收
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
     }
 
     // **** ADD LIQUIDITY ****
+    /**
+    tokenA                       tokenA地址
+    tokenB                       tokenB地址
+    amountADesired               tokenA期望值
+    amountBDesired               tokenB期望值
+    amountAMin                   tokenA最小值
+    amountBMin                   tokenB最小值
+
+    amountA                      返回添加到流动池中的tokenA值
+    amountB                      返回添加到流动池中的tokenB值
+     */
     function _addLiquidity(
         address tokenA,
         address tokenB,
@@ -39,13 +55,17 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         uint amountBMin
     ) internal virtual returns (uint amountA, uint amountB) {
         // create the pair if it doesn't exist yet
+        // 判断配对合约是否不存在，不存在则创建配对合约
         if (IUniswapV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
             IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
+        // 获取储备量
         (uint reserveA, uint reserveB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
+        // 如果储备量A和储备量B都是0  则说明配对合约刚刚创建 则返回的计算出的tokenA值和tokenB是tokenA、tokenB的期望值
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
+            
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
                 require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
