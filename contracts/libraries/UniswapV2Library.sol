@@ -45,9 +45,13 @@ library UniswapV2Library {
     }
 
     // given some amount of an asset and pair reserves, returns an equivalent amount of the other asset
+    // 提供一定数量的资产和交易对储备，返回等价数量的另一种资产。
     function quote(uint amountA, uint reserveA, uint reserveB) internal pure returns (uint amountB) {
+        // 验证提供的token数量必须大于0 
         require(amountA > 0, 'UniswapV2Library: INSUFFICIENT_AMOUNT');
+        // 验证tokenA和tokenB的储备量必须大于0
         require(reserveA > 0 && reserveB > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        // 按照比例计算出另外一种代币的值 tokenA的值 * 储备量B / 储备量A
         amountB = amountA.mul(reserveB) / reserveA;
     }
 

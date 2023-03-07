@@ -65,19 +65,42 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
-            
+            // 根据tokenA的期望值 tokenA、tokenB的储备量计算tokenB的最优值
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
+            // 判断tokenB的最优值 小于或等于tokenB的期望值
             if (amountBOptimal <= amountBDesired) {
+                // 验证tokenB的最优值 大于等于tokenB最小值
                 require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
+                // 返回tokenA期望值和tokenB最优值
                 (amountA, amountB) = (amountADesired, amountBOptimal);
             } else {
+                // 如果tokenB最优值 大于tokenB的期望值，则使用tokenB的期望值去计算tokenA的最优值
                 uint amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
+                // 验证tokenA的最优值要小于等于tokenA的期望值
                 assert(amountAOptimal <= amountADesired);
+                // 验证tokenA的最优值要大于等于tokenA的最小值
                 require(amountAOptimal >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
+                // 返回tokenA的最优值和tokenB的期望值
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
             }
         }
     }
+
+    /**
+    添加流动性
+    tokenA                  代币A的地址
+    tokenB                  代币B的地址
+    amountADesired          代币A的期望数量
+    amountBDesired          代币B的期望数量
+    amountAMin              代币A的最小数量
+    amountBMin              代币B的最小数量
+    to                      添加流动性池的用户地址
+    deadline                最后允许执行的时间戳
+
+    amountA                 返回代币A添加进流动性池中的数量
+    amountB                 返回代币B添加进流动性池中的数量
+    liquidity               返回添加的流动性值
+     */
     function addLiquidity(
         address tokenA,
         address tokenB,
@@ -88,10 +111,15 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint amountA, uint amountB, uint liquidity) {
+        // 计算出添加到流动性池中代币A和代币B的数量
         (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        // 计算出配对合约的地址
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        // 向配对合约转tokenA
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
+        // 向配对合约转tokenB
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
+        // 铸造流动性代币给添加流动性池的用户
         liquidity = IUniswapV2Pair(pair).mint(to);
     }
     function addLiquidityETH(
