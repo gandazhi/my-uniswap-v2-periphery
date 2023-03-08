@@ -122,6 +122,20 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         // 铸造流动性代币给添加流动性池的用户
         liquidity = IUniswapV2Pair(pair).mint(to);
     }
+
+    /**
+    ERC20代币和以太坊组成配对添加流动性
+    token                       ERC20代币地址
+    amountTokenDesired          代币期望数量
+    amountTokenMin              代币最小数量
+    amountETHMin                以太币最小数量
+    to                          添加流动性池的用户地址
+    deadline                    最后允许执行的时间戳
+
+    amountToken                 返回添加进流动性池的代币数量
+    amountETH                   返回添加到流动性池的以太币数量
+    liquidity                   返回本次添加的流动性值
+     */
     function addLiquidityETH(
         address token,
         uint amountTokenDesired,
@@ -130,6 +144,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override payable ensure(deadline) returns (uint amountToken, uint amountETH, uint liquidity) {
+        // 计算出添加到流动性池的代币数量和以太币数量
         (amountToken, amountETH) = _addLiquidity(
             token,
             WETH,
@@ -138,12 +153,18 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             amountTokenMin,
             amountETHMin
         );
+        // 计算出配对合约地址
         address pair = UniswapV2Library.pairFor(factory, token, WETH);
+        // 向配对合约中转入代币
         TransferHelper.safeTransferFrom(token, msg.sender, pair, amountToken);
+        // 向WETH中存入计算出添加到流动性池中的数量
         IWETH(WETH).deposit{value: amountETH}();
+        // 从WETH中转如添加到流动性池中的数量到配对合约
         assert(IWETH(WETH).transfer(pair, amountETH));
+        // 铸造流动性代币给添加流动性代币的用户
         liquidity = IUniswapV2Pair(pair).mint(to);
         // refund dust eth, if any
+        // 如果有剩余的ETH 将剩余的ETH转给用户
         if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
     }
 
