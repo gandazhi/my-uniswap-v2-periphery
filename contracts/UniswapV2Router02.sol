@@ -168,6 +168,19 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
     }
 
+    /**
+    移除流动性
+    tokenA              代币A的地址
+    tokenB              代币B的地址
+    liquidity           待销毁的流动性值
+    amountAMin          代币A提取的最小数量
+    amountBMin          代币B提取的最小数量
+    to                  销毁流动性的用户地址
+    deadline            最后允许执行的时间戳
+
+    amountA             返回提取代币A的数量
+    amountB             返回提取代币B的数量
+     */
     // **** REMOVE LIQUIDITY ****
     function removeLiquidity(
         address tokenA,
@@ -178,14 +191,33 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) public virtual override ensure(deadline) returns (uint amountA, uint amountB) {
+        // 计算配对合约地址
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        // 向配对合约发送需要消除的流动性
         IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        // 调用配对合约的销毁方法 销毁流动性 提取代币
         (uint amount0, uint amount1) = IUniswapV2Pair(pair).burn(to);
+        // 排序 根据代币排序 返回提取的代币数量
         (address token0,) = UniswapV2Library.sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+        // 确保提取的代币A的数量大于等于代币A最小值
         require(amountA >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
+        // 确保提取的代币B的数量大于等于代币B最小值
         require(amountB >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
     }
+
+    /**
+     移除普通代币和以太币组成的流动性
+     token                          代币的地址
+     liquidity                      待销毁的流动性值
+     amountTokenMin                 提取代币的最小值
+     amountETHMin                   提取以太坊的最小值
+     to                             销毁流动性值的用户地址
+     deadline                       允许执行的最后时间戳
+
+     amountToken                    返回提取的代币数量
+     amountETH                      返回提取的以太币数量
+     */    
     function removeLiquidityETH(
         address token,
         uint liquidity,
@@ -194,6 +226,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) public virtual override ensure(deadline) returns (uint amountToken, uint amountETH) {
+        // 销毁以太币的流动性 其中用WETH代替以太币
         (amountToken, amountETH) = removeLiquidity(
             token,
             WETH,
@@ -203,8 +236,11 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             address(this),
             deadline
         );
+        // TODO 为什么还要再转移一次代币 在配对合约中的burn方法不是已经使用_safeTransfer方法转移了代币吗 会导致多次转移
         TransferHelper.safeTransfer(token, to, amountToken);
+        // 将WETH转成ETH
         IWETH(WETH).withdraw(amountETH);
+        // 向用户转移ETH
         TransferHelper.safeTransferETH(to, amountETH);
     }
     function removeLiquidityWithPermit(
